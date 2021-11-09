@@ -1,0 +1,27 @@
+{
+  "name": "connected-threads",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mihaibotanel/threads.git"
+  },
+  "author": "mihaibotanel",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mihaibotanel/threads/issues"
+  },
+  "homepage": "https://github.com/mihaibotanel/threads#readme",
+  "devDependencies": {
+    "@types/node": "^16.11.6",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.4.4"
+  }
+}
