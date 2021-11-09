@@ -1,20 +1,24 @@
 import { Worker } from "worker_threads";
 
-export class Thread {
-  private filename?: Readonly<string>;
-  private fn?: Readonly<Function>;
-  private args: Readonly<any[]>;
+interface ArrowFuntion {
+  (...args: any): any
+}
 
-  constructor(filename: string, ...args: any);
-  constructor(fn: Function, ...args: any);
-  constructor(script: string | Function, ...args: any[]) {
+export class Thread<TFn extends ArrowFuntion = ArrowFuntion> {
+  private fn?: TFn;
+  private filename?: Readonly<string>;
+  private args: Readonly<Array<any>>;
+
+  constructor(fn: TFn, args: Parameters<TFn>);
+  constructor(filename: string, args: Array<any>);
+  constructor(script: TFn | string, args: Array<any>) {
     if (typeof script === "string") this.filename = script;
     else this.fn = script;
     this.args = args;
   }
 
   private getFileWorker(): Worker {
-    return new Worker(this.filename!);
+    return new Worker(this.filename!, {workerData: this.args});
   }
 
   private getScriptWorker(): Worker {
@@ -26,14 +30,17 @@ export class Thread {
     return new Worker(script, { eval: true });
   }
 
-  async run(): Promise<void> {
-    new Promise((resolve, reject) => {
+  async run() {
+    return new Promise((resolve, reject) => {
         const worker = this.filename ? this.getFileWorker() : this.getScriptWorker();
-        worker.once("online", () => {
+        worker.on("online", () => {
             console.log("online");   
         })
-        worker.once("message", resolve)
+        worker.once("message", (data) => {
+            console.log('data' + data)
+        })
         worker.once("error", reject)
+        worker.once('exit', resolve)
     })
   }
 }
