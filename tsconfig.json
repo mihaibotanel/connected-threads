@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "target": "es2015",
+    "target": "es6",
     "module": "commonjs",
     "strict": true,
-    "outDir": "./out",
+    "outDir": "./dist",
     "sourceMap": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -11,5 +11,8 @@
     "experimentalDecorators": true,
     "skipLibCheck": true,        
     "forceConsistentCasingInFileNames": true
-  }
+  },
+  "include": [
+    "./src/**/*.ts"
+  ]
 }
