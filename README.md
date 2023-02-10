@@ -6,10 +6,10 @@ Library that allows you to run scripts or other files on separate threads. It us
 
 ```
 # npm
-npm i @mihaibotanel/connected-threads
+npm i connected-threads
 
 # yarn
-yarn add @mihaibotanel/connected-threads
+yarn add connected-threads
 ```
 
 ## Usage
@@ -17,7 +17,7 @@ yarn add @mihaibotanel/connected-threads
 ### Using functions
 
 ```javascript
-import { Thread } from "@mihaibotanel/connected-threads";
+import { Thread } from "connected-threads";
 
 const thread = new Thread((x: number, y: number) => console.log(x + y), [2, 3]);
 thread.run();
@@ -28,7 +28,7 @@ thread.run();
 index.ts
 
 ```javascript
-import { Thread } from "@mihaibotanel/connected-threads";
+import { Thread } from "connected-threads";
 
 const thread = new Thread("./file.ts");
 const threadEvent = thread.run();
