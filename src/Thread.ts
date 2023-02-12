@@ -12,7 +12,7 @@ abstract class Thread {
 
   abstract getWorker(): Worker;
 
-  run(): ThreadEvent {
+  run<TPub, TSub>(): ThreadEvent<TPub, TSub> {
     return this.getWorker();
   }
 }
@@ -24,10 +24,10 @@ class ScriptThread<TFn extends BasicFuntion> extends Thread {
 
   getWorker(): Worker {
     const script = `
-    (async () => {
-        await ${this.fn!(...this.args)} 
-    })()
-  `;
+      (async () => {
+          await ${this.fn!(...this.args)} 
+      })()
+    `;
     return new Worker(script, { eval: true });
   }
 }
