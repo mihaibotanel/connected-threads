@@ -1,1 +1,1 @@
-export { Thread } from "./Thread"
+export { ThreadFactory } from "./Thread"

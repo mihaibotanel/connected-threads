@@ -3,29 +3,41 @@ import path from "path";
 import fs from "fs";
 import { ThreadEvent } from "./ThreadEvent";
 
-interface ArrowFuntion {
-  (...args: any): any;
+interface BasicFuntion {
+  (...args: unknown[]): unknown;
 }
 
-export class Thread<TFn extends ArrowFuntion> {
-  private fn?: TFn;
-  private filename?: Readonly<string>;
-  private args: Readonly<Array<any>>;
+abstract class Thread {
+  constructor(protected args: unknown[]) {}
 
-  constructor(fn: TFn, args: Parameters<TFn>);
-  constructor(filename: string, args: Array<any>);
-  constructor(script: TFn | string, args: Array<any>) {
-    if (typeof script === "string") {
-      if (!fs.existsSync(script))
-        throw new Error(`ENOENT: no such file ${script}`);
-      this.filename = script;
-    } else {
-      this.fn = script;
-    }
-    this.args = args;
+  abstract getWorker(): Worker;
+
+  run(): ThreadEvent {
+    return this.getWorker();
+  }
+}
+
+class ScriptThread<TFn extends BasicFuntion> extends Thread {
+  constructor(private fn: TFn, args: Parameters<TFn>) {
+    super(args);
   }
 
-  private getFileWorker(): Worker {
+  getWorker(): Worker {
+    const script = `
+    (async () => {
+        await ${this.fn!(...this.args)} 
+    })()
+  `;
+    return new Worker(script, { eval: true });
+  }
+}
+
+class SourceThread extends Thread {
+  constructor(private filename: string, args: unknown[]) {
+    super(args);
+  }
+
+  getWorker(): Worker {
     const tsFile = path.extname(this.filename!) === ".ts";
     const script = `
       if(${tsFile}) require('ts-node').register()
@@ -33,30 +45,16 @@ export class Thread<TFn extends ArrowFuntion> {
     `;
     return new Worker(script, { workerData: this.args, eval: true });
   }
+}
 
-  private getScriptWorker(): Worker {
-    const script = `
-      (async () => {
-          await ${this.fn!(...this.args)} 
-      })()
-    `;
-    return new Worker(script, { eval: true });
+export class ThreadFactory {
+  static fromScript<TFn extends BasicFuntion>(fn: TFn, args: Parameters<TFn>) {
+    return new ScriptThread(fn, args);
   }
 
-  run(): ThreadEvent {
-    const threadEvent: any = new ThreadEvent();
-    const worker = this.filename
-      ? this.getFileWorker()
-      : this.getScriptWorker();
-
-    worker.on("online", () => threadEvent.emit("online"));
-    worker.on("message", (data) => threadEvent.emit("data", { payload: data }));
-    worker.once("error", (err) => threadEvent.emit("error", err));
-    worker.once("exit", () => threadEvent.emit("close"));
-
-    threadEvent.on("message", (payload: any) => worker.postMessage(payload));
-    threadEvent.on("terminate", () => worker.terminate());
-
-    return threadEvent;
+  static fromSource(filename: string, args: unknown[] = []) {
+    if (!fs.existsSync(filename))
+      throw new Error(`ENOENT: no such file ${filename}`);
+    return new SourceThread(filename, args);
   }
 }
