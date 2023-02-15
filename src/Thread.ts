@@ -1,60 +1,58 @@
-import { Worker } from "worker_threads";
 import path from "path";
-import fs from "fs";
-import { ThreadEvent } from "./ThreadEvent";
+import { Worker, isMainThread, parentPort } from "worker_threads";
+import { ThreadEmitter } from "./ThreadEmitter";
 
 interface BasicFuntion {
   (...args: unknown[]): unknown;
 }
 
-abstract class Thread {
-  constructor(protected args: unknown[]) {}
-
-  abstract getWorker(): Worker;
-
-  run<TPub, TSub>(): ThreadEvent<TPub, TSub> {
-    return this.getWorker();
+export function functionThread<TFn extends BasicFuntion>(
+  fn: TFn,
+  args: Parameters<TFn>
+): Promise<ReturnType<TFn>> {
+  if (!isMainThread) {
+    throw new Error("This function is intended to be called only from the main thread.");
   }
+
+  const script = `
+        (async () => {
+            const { parentPort, workerData } = require('worker_threads');
+            const args = workerData;
+            const result = await (${fn})(...args);
+            parentPort.postMessage(result);
+        })();
+  `;
+
+  const worker = new Worker(script, { eval: true, workerData: args });
+
+  return new Promise((resolve, reject) => {
+    worker.on("message", (value: ReturnType<TFn>) => resolve(value));
+    worker.on("error", (err) => reject(err));
+  });
 }
 
-class ScriptThread<TFn extends BasicFuntion> extends Thread {
-  constructor(private fn: TFn, args: Parameters<TFn>) {
-    super(args);
+export function fileThread<TPub, TSub>(
+  filename: string
+): ThreadEmitter<TPub, TSub> {
+  if (!isMainThread) {
+    throw new Error("This function is intended to be called only from the main thread.");
   }
 
-  getWorker(): Worker {
-    const script = `
-      (async () => {
-          await ${this.fn!(...this.args)} 
-      })()
-    `;
-    return new Worker(script, { eval: true });
-  }
+  const isTsFile = path.extname(filename!) === ".ts";
+  const script = `
+        if(${isTsFile}) {
+            require('ts-node').register()
+        }
+        require('${filename}')
+  `;
+
+  const worker = new Worker(script, { eval: true });
+  return new ThreadEmitter<TPub, TSub>(worker);
 }
 
-class SourceThread extends Thread {
-  constructor(private filename: string, args: unknown[]) {
-    super(args);
+export function getParentThread<TPub, TSub>(): ThreadEmitter<TPub, TSub> {
+  if (isMainThread || !parentPort) {
+    throw new Error("The current thread is not a worker thread");
   }
-
-  getWorker(): Worker {
-    const tsFile = path.extname(this.filename!) === ".ts";
-    const script = `
-      if(${tsFile}) require('ts-node').register()
-      require('${this.filename}')
-    `;
-    return new Worker(script, { workerData: this.args, eval: true });
-  }
-}
-
-export class ThreadFactory {
-  static fromScript<TFn extends BasicFuntion>(fn: TFn, args: Parameters<TFn>) {
-    return new ScriptThread(fn, args);
-  }
-
-  static fromSource(filename: string, args: unknown[] = []) {
-    if (!fs.existsSync(filename))
-      throw new Error(`ENOENT: no such file ${filename}`);
-    return new SourceThread(filename, args);
-  }
+  return new ThreadEmitter<TPub, TSub>(parentPort);
 }

@@ -1,1 +1,1 @@
-export { ThreadFactory } from "./Thread"
+export { fileThread, functionThread, getParentThread } from './Thread';
