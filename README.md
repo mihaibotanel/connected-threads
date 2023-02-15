@@ -17,10 +17,11 @@ yarn add connected-threads
 ### Using functions
 
 ```javascript
-import { Thread } from "connected-threads";
+import { functionThread } from "connected-threads";
 
-const thread = new Thread((x: number, y: number) => console.log(x + y), [2, 3]);
-thread.run();
+functionThread((a: number, b: number) => a + b, [1, 3]).then((result) => {
+  console.log(result);
+});
 ```
 
 ### Using external scripts
@@ -28,33 +29,34 @@ thread.run();
 index.ts
 
 ```javascript
-import { Thread } from "connected-threads";
+import { fileThread } from "connected-threads";
 
-const thread = new Thread("./file.ts");
-const threadEvent = thread.run();
+const threadEvent = fileThread<number[], number>("./file.ts");
 
-threadEvent.on("data", (payload: Object) => {
-  console.log(payload);
-});
 threadEvent.on("online", () => {
   console.log("online");
 });
+
+threadEvent.postMessage([1, 2, 3]);
+threadEvent.postMessage([7, 4, 7]);
+
+threadEvent.on("message", (result: number) => {
+  console.log(`Sum: ${result}`);
+});
+
 threadEvent.on("close", () => {
   console.log("close");
 });
-threadEvent.emit("message", { name: "threads" });
 ```
 
 file.ts
 
 ```javascript
-import { parentPort } from "worker_threads";
+import { getParentThread } from "connected-threads";
 
-if (parentPort) {
-  parentPort.on("message", (message: Object) => {
-    console.log(message);
-  });
-  parentPort.postMessage("Message 1");
-  parentPort.postMessage("Message 2");
-}
+const parent = getParentThread<number, number[]>();
+
+parent.on("message", (array: number[]) => {
+  parent.postMessage(array.reduce((sum, val) => sum + val));
+});
 ```
